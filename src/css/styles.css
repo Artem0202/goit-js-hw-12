@@ -46,7 +46,7 @@ li {
   justify-content: center;
   grid-template-columns: repeat(auto-fit, minmax(360px, 200px));
   gap: 24px;
-  min-width: 1440px;
+  min-width: 1640px;
   list-style-type: none;
   padding-left: 0;
 }
@@ -95,8 +95,11 @@ p {
   letter-spacing: 0.04em;
   color: #2e2f42;
 }
-
+.button-load-more {
+  display: none;
+}
 .loader {
+  display: none;
   margin-left: auto;
   margin-right: auto;
   transform: rotateZ(45deg);

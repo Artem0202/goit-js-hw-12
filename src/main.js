@@ -3,51 +3,62 @@ import iziToast from 'izitoast';
 import 'izitoast/dist/css/iziToast.min.css';
 import SimpleLightbox from 'simplelightbox';
 import 'simplelightbox/dist/simple-lightbox.min.css';
+import axios from 'axios';
 
 const form = document.querySelector('form');
 const photosList = document.querySelector('ul');
+const loadMoreButton = document.querySelector('.button-load-more');
+let page = 1;
+let perPage = 15;
+let inputContent;
+let totalHits;
+let totalPages;
+
+const louder = `<div class="loader"></div>`;
+photosList.insertAdjacentHTML('afterend', louder);
+const loaderBox = document.querySelector('.loader');
 
 form.addEventListener('submit', searchImages);
 
-function searchImages(event) {
-  event.preventDefault();
-  const inputContent = event.currentTarget.text.value.trim();
-  if (inputContent === '') {
-    iziToast.info({
-      title: 'Attention',
-      message: 'Please enter a request',
-    });
-    return;
+async function searchImages(event) {
+  try {
+    event.preventDefault();
+    page = 1;
+    photosList.innerHTML = '';
+    loadMoreButton.style.display = 'none';
+    loaderBox.style.display = 'block';
+
+    inputContent = event.currentTarget.text.value.trim();
+    if (inputContent === '') {
+      return iziToast.info({
+        title: 'Attention',
+        message: 'Please enter a request',
+      });
+    }
+
+    const photos = await fetchPhotos();
+    fetchThen(photos);
+    loadMoreButton.addEventListener('click', searchMoreImages);
+  } catch (error) {
+    console.log(error);
   }
-
-  const searchParams = new URLSearchParams({
-    key: '42277642-5b5e0c3e2383e813180f7c1aa',
-    q: inputContent,
-    image_type: 'photo',
-    orientation: 'horizontal',
-    safesearch: true,
-  });
-
-  fetch(`https://pixabay.com/api/?${searchParams}`)
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(response.status);
-      }
-      return response.json();
-    })
-    .then(fetchThen)
-    .catch(error => {
-      console.log(error);
-    });
 }
+const fetchPhotos = async () => {
+  const response = await axios.get(`https://pixabay.com/api/`, {
+    params: {
+      key: '42277642-5b5e0c3e2383e813180f7c1aa',
+      q: inputContent,
+      image_type: 'photo',
+      orientation: 'horizontal',
+      safesearch: true,
+      per_page: perPage,
+      page: page,
+    },
+  });
+  return response.data;
+};
 
 function fetchThen(photos) {
-  photosList.innerHTML = '';
-
-  const louder = `<div class="loader"></div>`;
-  photosList.insertAdjacentHTML('beforebegin', louder);
-  const loaderBox = document.querySelector('.loader');
-
   const markupGalleryPhotos = photos.hits
     .map(photo => {
       return `
@@ -79,7 +90,7 @@ function fetchThen(photos) {
     .join('');
 
   setTimeout(() => {
-    loaderBox.remove();
+    loaderBox.style.display = 'none';
     if (photos.totalHits === 0) {
       iziToast.error({
         title: 'Error',
@@ -90,10 +101,42 @@ function fetchThen(photos) {
     }
 
     photosList.insertAdjacentHTML('beforeend', markupGalleryPhotos);
+    const galleryItem = document.querySelector('.gallery-item');
+    let sizesGalleryBox = galleryItem.getBoundingClientRect();
+    window.scrollBy({
+      top: sizesGalleryBox.width * 2,
+      behavior: 'smooth',
+    });
+
+    loadMoreButton.style.display = 'inline-block';
+
     let lightbox = new SimpleLightbox('.gallery-list a', {
       captionsData: 'alt',
       captionDelay: 250,
     });
     lightbox.refresh();
+
+    totalHits = photos.totalHits;
+    totalPages = Math.ceil(totalHits / perPage);
+    if (page >= totalPages) {
+      loadMoreButton.style.display = 'none';
+
+      return iziToast.info({
+        position: 'topRight',
+        message: "We're sorry, but you've reached the end of search results.",
+      });
+    }
   }, 1000);
+}
+
+async function searchMoreImages() {
+  try {
+    page += 1;
+    loadMoreButton.style.display = 'none';
+    loaderBox.style.display = 'block';
+    const photos = await fetchPhotos();
+    fetchThen(photos);
+  } catch (error) {
+    console.log(error);
+  }
 }
